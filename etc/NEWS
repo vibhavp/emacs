@@ -31,6 +31,13 @@ functions 'json-serialize', 'json-insert', 'json-parse-string', and
 'json-parse-buffer' are typically much faster than their Lisp
 counterparts from json.el.
 
+** The etags program now uses the C library's regular expression matcher
+when possible, and a compatible regex substitute otherwise.  This will
+let developers maintain Emacs's own regex code without having to also
+support other programs.  The new configure option '--without-included-regex'
+forces etags to use the C library's regex matcher even if the regex
+substitute ordinarily would be used to work around compatibility problems.
+
 ** Emacs has been ported to the -fcheck-pointer-bounds option of GCC.
 This causes Emacs to check bounds of some arrays addressed by its
 internal pointers, which can be helpful when debugging the Emacs
@@ -45,6 +52,13 @@ catch typos and support -fcheck-pointer-bounds.  The 'configure'
 option --enable-check-lisp-object-type is therefore no longer as
 useful and so is no longer enabled by default in developer builds,
 to reduce differences between developer and production builds.
+
+** Gnus
+
++++
+*** The nnimap backend now has support for IMAP namespaces.
+This feature can be enabled by setting the new 'nnimap-use-namespaces'
+server variable to non-nil.
 
 
 * Startup Changes in Emacs 27.1
@@ -181,6 +195,11 @@ from a remote host.
 ** The function 'executable-find' supports an optional argument REMOTE.
 This triggers to search the program on the remote host as indicated by
 'default-directory'.
+
++++
+** New variable 'auto-save-no-message'.
+When set to t, no message will be shown when auto-saving (default
+value: nil).
 
 
 * Editing Changes in Emacs 27.1
