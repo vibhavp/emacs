@@ -407,6 +407,8 @@ otherwise for the first of 'inotify', 'kqueue' or 'gfile' that is usable.])
 OPTION_DEFAULT_OFF([xwidgets],
   [enable use of some gtk widgets in Emacs buffers (requires gtk3)])
 
+OPTION_DEFAULT_OFF([jit], [don't compile with JIT support (requires libgccjit)])
+
 ## For the times when you want to build Emacs but don't have
 ## a suitable makeinfo, and can live without the manuals.
 dnl https://lists.gnu.org/r/emacs-devel/2008-04/msg01844.html
@@ -3907,6 +3909,20 @@ fi
 AC_SUBST(XDBE_CFLAGS)
 AC_SUBST(XDBE_LIBS)
 
+### Use libgccjit (-lgccjit) if available
+HAVE_JIT=no
+if test "${with_jit}" != "no"; then
+   AC_CHECK_LIB(gccjit, gcc_jit_context_acquire, HAVE_JIT=yes)
+
+   if test "${HAVE_JIT}" = "yes"; then
+      JIT_LIBS="-lgccjit"
+      JIT_OBJ=jit.o
+      AC_DEFINE(HAVE_JIT, 1, [Define if using libgccjit.])
+   fi
+fi
+AC_SUBST(JIT_LIBS)
+AC_SUBST(JIT_OBJ)
+
 ### Use libxml (-lxml2) if available
 ### mingw32 doesn't use -lxml2, since it loads the library dynamically.
 HAVE_LIBXML2=no
@@ -5478,7 +5494,7 @@ emacs_config_features=
 for opt in XAW3D XPM JPEG TIFF GIF PNG RSVG CAIRO IMAGEMAGICK SOUND GPM DBUS \
   GCONF GSETTINGS GLIB NOTIFY ACL LIBSELINUX GNUTLS LIBXML2 FREETYPE M17N_FLT \
   LIBOTF XFT ZLIB TOOLKIT_SCROLL_BARS X_TOOLKIT OLDXMENU X11 XDBE XIM \
-  NS MODULES THREADS XWIDGETS LIBSYSTEMD JSON CANNOT_DUMP LCMS2 GMP; do
+  NS MODULES THREADS XWIDGETS LIBSYSTEMD JSON JIT CANNOT_DUMP LCMS2 GMP; do
 
     case $opt in
       CANNOT_DUMP) eval val=\${$opt} ;;
@@ -5532,6 +5548,7 @@ AS_ECHO(["  Does Emacs use -lXaw3d?                                 ${HAVE_XAW3D
   Does Emacs use -lsystemd?                               ${HAVE_LIBSYSTEMD}
   Does Emacs use -ljansson?                               ${HAVE_JSON}
   Does Emacs use -lgmp?                                   ${HAVE_GMP}
+  Does Emacs use -lgccjit?                                ${HAVE_JIT}
   Does Emacs directly use zlib?                           ${HAVE_ZLIB}
   Does Emacs have dynamic modules support?                ${HAVE_MODULES}
   Does Emacs use toolkit scroll bars?                     ${USE_TOOLKIT_SCROLL_BARS}

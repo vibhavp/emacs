@@ -34,6 +34,10 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "lisp.h"
 #include "sysstdio.h"
 
+#ifdef HAVE_JIT
+#include "jit.h"
+#endif
+
 #ifdef WINDOWSNT
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -1632,6 +1636,10 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
 
 #ifdef HAVE_JSON
       syms_of_json ();
+#endif
+
+#ifdef HAVE_JIT
+      syms_of_jit ();
 #endif
 
       keys_of_casefiddle ();

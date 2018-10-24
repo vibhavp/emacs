@@ -19,7 +19,13 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef THREAD_H
 #define THREAD_H
 
+#include <config.h>
+
 #include "regex-emacs.h"
+
+#ifdef HAVE_JIT
+#include "jit.h"
+#endif
 
 #ifdef WINDOWSNT
 #include <sys/socket.h>
@@ -180,6 +186,10 @@ struct thread_state
      in thread_select, and didn't have a chance of acquiring the lock.
      It must do so ASAP.  */
   int not_holding_lock;
+
+#ifdef HAVE_JIT
+  struct jit_context *jit_context;
+#endif
 
   /* Threads are kept on a linked list.  */
   struct thread_state *next_thread;

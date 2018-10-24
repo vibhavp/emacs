@@ -482,6 +482,16 @@ DEFUN ("byte-code-function-p", Fbyte_code_function_p, Sbyte_code_function_p,
   return Qnil;
 }
 
+DEFUN ("jit-compiled-p", Fjit_compiled_p, Sjit_compiled_p,
+       1, 1, 0,
+       doc: /*Return t if OBJECT is a JIT compiled function object.  */)
+     (Lisp_Object object)
+{
+  if (JIT_COMPILEDP (object))
+    return Qt;
+  return Qnil;
+}
+
 DEFUN ("module-function-p", Fmodule_function_p, Smodule_function_p, 1, 1, NULL,
        doc: /* Return t if OBJECT is a function loaded from a dynamic module.  */
        attributes: const)
@@ -3988,6 +3998,7 @@ syms_of_data (void)
   defsubr (&Smarkerp);
   defsubr (&Ssubrp);
   defsubr (&Sbyte_code_function_p);
+  defsubr (&Sjit_compiled_p);
   defsubr (&Smodule_function_p);
   defsubr (&Schar_or_string_p);
   defsubr (&Sthreadp);

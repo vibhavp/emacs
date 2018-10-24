@@ -1298,8 +1298,9 @@
 	 (+ (aref bytes bytedecomp-ptr)
 	    (progn (setq bytedecomp-ptr (1+ bytedecomp-ptr))
 		   (ash (aref bytes bytedecomp-ptr) 8))))
-	((and (>= bytedecomp-op byte-listN)
-	      (<= bytedecomp-op byte-discardN))
+	((or (and (>= bytedecomp-op byte-listN)
+	          (<= bytedecomp-op byte-discardN))
+             (memq bytedecomp-op (list byte-br-if byte-br)))
 	 (setq bytedecomp-ptr (1+ bytedecomp-ptr)) ;Offset in next byte.
 	 (aref bytes bytedecomp-ptr))))
 

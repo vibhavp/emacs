@@ -3057,10 +3057,36 @@ funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
 	     and constants vector yet, fetch them from the file.  */
 	  if (CONSP (AREF (fun, COMPILED_BYTECODE)))
 	    Ffetch_bytecode (fun);
-	  return exec_byte_code (AREF (fun, COMPILED_BYTECODE),
+
+#ifdef HAVE_JIT
+          if (JIT_COMPILEDP (fun))
+            {
+              USE_SAFE_ALLOCA;
+              eassert (mint_ptrp (AREF (fun, COMPILED_JIT_CODE)));
+
+              struct jit_result *res =
+                xmint_pointer (AREF (fun, COMPILED_JIT_CODE));
+              if (nargs < res->min_args || nargs > res->max_args)
+                xsignal2 (Qwrong_number_of_arguments, fun, make_fixnum (nargs));
+              if (nargs < res->max_args)
+                {
+                  Lisp_Object *old_args = arg_vector;
+                  SAFE_ALLOCA_LISP (arg_vector, res->max_args);
+                  memclear (arg_vector, res->max_args * sizeof *arg_vector);
+                  memcpy (arg_vector, old_args, nargs);
+                }
+
+              Lisp_Object val = res->aMANY (nargs, arg_vector);
+              SAFE_FREE ();
+              return val;
+            }
+#endif
+
+          return exec_byte_code (AREF (fun, COMPILED_BYTECODE),
 				 AREF (fun, COMPILED_CONSTANTS),
 				 AREF (fun, COMPILED_STACK_DEPTH),
 				 syms_left,
+
 				 nargs, arg_vector);
 	}
       lexenv = Qnil;
@@ -3135,10 +3161,24 @@ funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
 	 and constants vector yet, fetch them from the file.  */
       if (CONSP (AREF (fun, COMPILED_BYTECODE)))
 	Ffetch_bytecode (fun);
-      val = exec_byte_code (AREF (fun, COMPILED_BYTECODE),
-			    AREF (fun, COMPILED_CONSTANTS),
-			    AREF (fun, COMPILED_STACK_DEPTH),
-			    Qnil, 0, 0);
+
+#ifdef HAVE_JIT
+      if (JIT_COMPILEDP (fun))
+        {
+          eassert (mint_ptrp (AREF (fun, COMPILED_JIT_CODE)));
+          struct jit_result *res =
+            xmint_pointer (AREF (fun, COMPILED_JIT_CODE));
+
+          eassert (res->max_args == 0);
+          eassert (res->min_args == 0);
+          val = res->a0 ();
+        }
+#endif
+      else
+        val = exec_byte_code (AREF (fun, COMPILED_BYTECODE),
+                              AREF (fun, COMPILED_CONSTANTS),
+                              AREF (fun, COMPILED_STACK_DEPTH),
+                              Qnil, 0, 0);
     }
 
   return unbind_to (count, val);

@@ -34,6 +34,10 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <intprops.h>
 #include <verify.h>
 
+#ifdef HAVE_JIT
+#include <libgccjit.h>
+#endif
+
 INLINE_HEADER_BEGIN
 
 /* Define a TYPE constant ID as an externally visible name.  Use like this:
@@ -79,19 +83,25 @@ DEFINE_GDB_SYMBOL_END (GCTYPEBITS)
 #  error "INTPTR_MAX misconfigured"
 # elif INTPTR_MAX <= INT_MAX && !defined WIDE_EMACS_INT
 typedef int EMACS_INT;
+#define JIT_TYPE_EMACS_INT GCC_JIT_TYPE_INT
 typedef unsigned int EMACS_UINT;
+#define JIT_TYPE_EMACS_UINT GCC_JIT_TYPE_UNSIGNED_INT
 enum { EMACS_INT_WIDTH = INT_WIDTH, EMACS_UINT_WIDTH = UINT_WIDTH };
 #  define EMACS_INT_MAX INT_MAX
 #  define pI ""
 # elif INTPTR_MAX <= LONG_MAX && !defined WIDE_EMACS_INT
 typedef long int EMACS_INT;
+#define JIT_TYPE_EMACS_INT GCC_JIT_TYPE_LONG
 typedef unsigned long EMACS_UINT;
+#define JIT_TYPE_EMACS_UINT GCC_JIT_TYPE_UNSIGNED_LONG
 enum { EMACS_INT_WIDTH = LONG_WIDTH, EMACS_UINT_WIDTH = ULONG_WIDTH };
 #  define EMACS_INT_MAX LONG_MAX
 #  define pI "l"
 # elif INTPTR_MAX <= LLONG_MAX
 typedef long long int EMACS_INT;
+#define JIT_TYPE_EMACS_INT GCC_JIT_TYPE_LONG_LONG
 typedef unsigned long long int EMACS_UINT;
+#define JIT_TYPE_EMACS_UINT GCC_JIT_TYPE_UNSIGNED_LONG_LONG
 enum { EMACS_INT_WIDTH = LLONG_WIDTH, EMACS_UINT_WIDTH = ULLONG_WIDTH };
 #  define EMACS_INT_MAX LLONG_MAX
 /* MinGW supports %lld only if __USE_MINGW_ANSI_STDIO is non-zero,
@@ -2699,8 +2709,24 @@ enum Lisp_Compiled
     COMPILED_CONSTANTS = 2,
     COMPILED_STACK_DEPTH = 3,
     COMPILED_DOC_STRING = 4,
-    COMPILED_INTERACTIVE = 5
+    COMPILED_INTERACTIVE = 5,
+    COMPILED_JIT_CODE = 6,
   };
+
+#ifdef HAVE_JIT
+struct jit_result
+  {
+    union {
+      Lisp_Object (*a0) (void);
+      Lisp_Object (*aMANY) (ptrdiff_t, Lisp_Object *);
+    };
+
+    ptrdiff_t min_args;
+    ptrdiff_t max_args;
+    gcc_jit_result *result;
+    gcc_jit_context *ctxt;
+  };
+#endif
 
 /* Flag bits in a character.  These also get used in termhooks.h.
    Richard Stallman <rms@gnu.ai.mit.edu> thinks that MULE
@@ -2766,6 +2792,13 @@ INLINE bool
 COMPILEDP (Lisp_Object a)
 {
   return PSEUDOVECTORP (a, PVEC_COMPILED);
+}
+
+INLINE bool
+JIT_COMPILEDP (Lisp_Object o)
+{
+  return COMPILEDP (o) && PVSIZE (o) > COMPILED_JIT_CODE &&
+    !(NILP (XVECTOR (o)->contents[COMPILED_JIT_CODE]));
 }
 
 INLINE bool

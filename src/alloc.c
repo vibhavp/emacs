@@ -3237,6 +3237,23 @@ cleanup_vector (struct Lisp_Vector *vector)
 	uptr->finalizer (uptr->p);
     }
 #endif
+
+#ifdef HAVE_JIT
+  else if (PSEUDOVECTOR_TYPEP (&vector->header, PVEC_COMPILED))
+    {
+      if ((vector->header.size & PSEUDOVECTOR_SIZE_MASK) > COMPILED_JIT_CODE
+          && !NILP (vector->contents[COMPILED_JIT_CODE]))
+        {
+          Lisp_Object jit = vector->contents[COMPILED_JIT_CODE];
+          eassert (mint_ptrp (jit));
+          struct jit_result *res = xmint_pointer (jit);
+          eassert (res != NULL);
+          gcc_jit_result_release (res->result);
+          gcc_jit_context_release (res->ctxt);
+          xfree (res);
+        }
+    }
+#endif
 }
 
 /* Reclaim space used by unmarked vectors.  */
@@ -3546,6 +3563,7 @@ usage: (make-byte-code ARGLIST BYTE-CODE CONSTANTS DEPTH &optional DOCSTRING INT
   struct Lisp_Vector *p = XVECTOR (val);
 
   /* We used to purecopy everything here, if purify-flag was set.  This worked
+
      OK for Emacs-23, but with Emacs-24's lexical binding code, it can be
      dangerous, since make-byte-code is used during execution to build
      closures, so any closure built during the preload phase would end up
@@ -3555,6 +3573,26 @@ usage: (make-byte-code ARGLIST BYTE-CODE CONSTANTS DEPTH &optional DOCSTRING INT
 
   memcpy (p->contents, args, nargs * sizeof *args);
   make_byte_code (p);
+  XSETCOMPILED (val, p);
+  return val;
+}
+
+DEFUN ("make-jit-byte-code", Fmake_jit_code, Smake_jit_byte_code, 4, MANY, 0,
+       doc: /* Like make-byte-code, but reserves atleast 6 slots, for storing
+a JIT compiled function.
+usage: (make-byte-code ARGLIST BYTE-CODE CONSTANTS DEPTH &optional DOCSTRING INTERACTIVE-SPEC &rest ELEMENTS)*/)
+  (ptrdiff_t nargs, Lisp_Object *args)
+{
+  ptrdiff_t max_args = max (nargs, COMPILED_JIT_CODE + 1);
+  Lisp_Object val = make_uninit_vector (max_args);
+
+  struct Lisp_Vector *p = XVECTOR (val);
+  memcpy (p->contents, args, nargs * sizeof *args);
+  make_byte_code (p);
+  for (int i = nargs - 1; i <= COMPILED_JIT_CODE; i++)
+    p->contents[i] = Qnil;
+  for (int i = COMPILED_JIT_CODE; i <= max_args; i++)
+      p->contents[i] = Qnil;
   XSETCOMPILED (val, p);
   return val;
 }
@@ -7268,6 +7306,7 @@ than 2**N, where N is this variable's value.  N should be nonnegative.  */);
   defsubr (&Srecord);
   defsubr (&Sbool_vector);
   defsubr (&Smake_byte_code);
+  defsubr (&Smake_jit_byte_code);
   defsubr (&Smake_list);
   defsubr (&Smake_vector);
   defsubr (&Smake_record);

@@ -27,6 +27,10 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "syssignal.h"
 #include "keyboard.h"
 
+#ifdef HAVE_JIT
+#include "jit.h"
+#endif
+
 union aligned_thread_state
 {
   struct thread_state s;
@@ -807,6 +811,10 @@ If NAME is given, it must be a string; it names the new thread.  */)
   new_thread->error_data = Qnil;
   new_thread->event_object = Qnil;
 
+  #ifdef HAVE_JIT
+  new_thread->jit_context = jit_new_context ();
+  #endif
+
   new_thread->m_specpdl_size = 50;
   new_thread->m_specpdl = xmalloc ((1 + new_thread->m_specpdl_size)
 				   * sizeof (union specbinding));
@@ -1061,6 +1069,9 @@ init_main_thread (void)
   main_thread.s.error_symbol = Qnil;
   main_thread.s.error_data = Qnil;
   main_thread.s.event_object = Qnil;
+#ifdef HAVE_JIT
+  main_thread.s.jit_context = jit_new_context ();
+#endif
 }
 
 bool
