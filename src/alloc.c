@@ -3577,7 +3577,7 @@ usage: (make-byte-code ARGLIST BYTE-CODE CONSTANTS DEPTH &optional DOCSTRING INT
   return val;
 }
 
-DEFUN ("make-jit-byte-code", Fmake_jit_code, Smake_jit_byte_code, 4, MANY, 0,
+DEFUN ("make-jit-byte-code", Fmake_jit_byte_code, Smake_jit_byte_code, 4, MANY, 0,
        doc: /* Like make-byte-code, but reserves atleast 6 slots, for storing
 a JIT compiled function.
 usage: (make-byte-code ARGLIST BYTE-CODE CONSTANTS DEPTH &optional DOCSTRING INTERACTIVE-SPEC &rest ELEMENTS)*/)
@@ -3589,9 +3589,9 @@ usage: (make-byte-code ARGLIST BYTE-CODE CONSTANTS DEPTH &optional DOCSTRING INT
   struct Lisp_Vector *p = XVECTOR (val);
   memcpy (p->contents, args, nargs * sizeof *args);
   make_byte_code (p);
-  for (int i = nargs - 1; i <= COMPILED_JIT_CODE; i++)
+  for (int i = nargs; i <= COMPILED_JIT_CODE; i++)
     p->contents[i] = Qnil;
-  for (int i = COMPILED_JIT_CODE; i <= max_args; i++)
+  for (int i = COMPILED_JIT_CODE; i < max_args; i++)
       p->contents[i] = Qnil;
   XSETCOMPILED (val, p);
   return val;
