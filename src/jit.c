@@ -3096,11 +3096,10 @@ DEFUN ("jit-compile", Fjit_compile, Sjit_compile, 5, 5, 0,
       && (func = XSYMBOL (func)->u.s.function, SYMBOLP (func)))
     func = indirect_function (func);
 
-  if (!COMPILEDP (func))
+  if (!COMPILEDP (func) || JIT_COMPILEDP (func))
       return Qnil;
 
-  if (!(PVSIZE (func) > COMPILED_JIT_CODE) || !NILP (AREF (func,
-                                                           COMPILED_JIT_CODE)))
+  if (PVSIZE (func) < COMPILED_JIT_CODE)
     error ("invalid byte-code object");
 
   if (CONSP (AREF (func, COMPILED_BYTECODE)))
