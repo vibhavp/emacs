@@ -909,19 +909,37 @@ jit_compile_struct_deref (struct jit_context *ctxt, gcc_jit_rvalue *struct_r,
 }
 
 static gcc_jit_rvalue *
+jit_new_rvalue_from_intptr (struct jit_context *ctxt, intptr_t i)
+{
+  if (sizeof (intptr_t) == sizeof (int) ||
+      sizeof (intptr_t) == sizeof (short int))
+    return gcc_jit_context_new_rvalue_from_int (ctxt->ctxt, ctxt->type_intptr_t,
+                                                i);
+  return gcc_jit_context_new_rvalue_from_long (ctxt->ctxt, ctxt->type_intptr_t,
+                                               i);
+}
+
+static gcc_jit_rvalue *
 jit_compile_SPECDCL_INDEX (struct jit_context *ctxt)
 {
   gcc_jit_rvalue *ptr =
     jit_compile_struct_deref (ctxt, jit_get_main_thread (ctxt),
                               offsetof (struct thread_state, m_specpdl_ptr),
-                              ctxt->type_intptr_t);
-  gcc_jit_rvalue *pdl =
-    jit_compile_struct_deref (ctxt, jit_get_main_thread (ctxt),
-                              offsetof (struct thread_state, m_specpdl),
-                              ctxt->type_intptr_t);
-  return gcc_jit_context_new_binary_op (ctxt->ctxt, NULL,
-                                        GCC_JIT_BINARY_OP_MINUS,
-                                        ctxt->type_intptr_t, ptr, pdl);
+                              ctxt->type_intptr_t),
+    *pdl = jit_compile_struct_deref (ctxt, jit_get_main_thread (ctxt),
+                                     offsetof (struct thread_state, m_specpdl),
+                                     ctxt->type_intptr_t),
+    *diff = gcc_jit_context_new_binary_op (ctxt->ctxt, NULL,
+                                           GCC_JIT_BINARY_OP_MINUS,
+                                           ctxt->type_intptr_t,
+                                           ptr, pdl),
+    *size = jit_new_rvalue_from_intptr (ctxt, sizeof (union specbinding)),
+    *index = gcc_jit_context_new_binary_op (ctxt->ctxt, NULL,
+                                            GCC_JIT_BINARY_OP_DIVIDE,
+                                            ctxt->type_intptr_t,
+                                            diff, size);
+  return gcc_jit_context_new_cast (ctxt->ctxt, NULL, index,
+                                   ctxt->type_ptrdiff_t);
 }
 
 static void
@@ -1645,11 +1663,13 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
           {
             gcc_jit_lvalue *v2 = var_stack[stack_top--],
               *v1 = var_stack[stack_top];
-            gcc_jit_rvalue *call =
+            gcc_jit_rvalue *v2_r = gcc_jit_lvalue_as_rvalue (v2),
+              *call =
               jit_compile_call_to_subr (ctxt, Fnth, 2,
-                                        gcc_jit_lvalue_as_rvalue (v1),
-                                        gcc_jit_lvalue_as_rvalue (v2));
+                                        gcc_jit_lvalue_as_rvalue (v1), v2_r);
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, v1, call);
+            call = jit_compile_assume (ctxt, jit_compile_LISTP (ctxt, v2_r));
+            gcc_jit_block_add_eval (ctxt->cur_block, NULL, v2_r);
             break;
           }
 
@@ -1752,11 +1772,11 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
             gcc_jit_lvalue *v1 = var_stack[stack_top--],
               *top = var_stack[stack_top];
             JIT_ADD_COMMENT ("v1 = POP; top = TOP; TOP = Fcons (top, v1)");
-            gcc_jit_rvalue *call =
+            gcc_jit_rvalue *top_r = gcc_jit_lvalue_as_rvalue (top),
+              *call =
               jit_compile_call_to_subr (ctxt, Fcons, 2,
                                         gcc_jit_lvalue_as_rvalue (top),
-                                        gcc_jit_lvalue_as_rvalue (v1)),
-              *top_r = gcc_jit_lvalue_as_rvalue (top);
+                                        gcc_jit_lvalue_as_rvalue (v1));
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, top, call);
             call = jit_compile_assume (ctxt, jit_compile_CONSP (ctxt, top_r));
             gcc_jit_block_add_eval (ctxt->cur_block, NULL, call);
@@ -1766,10 +1786,8 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
         case Blist1:
           {
             gcc_jit_lvalue *top = var_stack[stack_top];
-            gcc_jit_rvalue *call =
-                jit_compile_call_to_subr (ctxt, list1, 1,
-                                          gcc_jit_lvalue_as_rvalue (top)),
-              *top_r = gcc_jit_lvalue_as_rvalue (top);
+            gcc_jit_rvalue *top_r = gcc_jit_lvalue_as_rvalue (top),
+              *call = jit_compile_call_to_subr (ctxt, list1, 1, top_r);
             gcc_jit_block_add_comment (ctxt->cur_block, NULL,
                                        "TOP = list1 (1, top)");
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, top, call);
@@ -1782,11 +1800,10 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
           {
             gcc_jit_lvalue *v1 = var_stack[stack_top--],
               *top = var_stack[stack_top];
-            gcc_jit_rvalue *call =
-              jit_compile_call_to_subr (ctxt, list2, 2,
-                                        gcc_jit_lvalue_as_rvalue (top),
-                                        gcc_jit_lvalue_as_rvalue (v1)),
-              *top_r = gcc_jit_lvalue_as_rvalue (top);
+            gcc_jit_rvalue *top_r = gcc_jit_lvalue_as_rvalue (top),
+              *call =
+              jit_compile_call_to_subr (ctxt, list2, 2, top_r,
+                                        gcc_jit_lvalue_as_rvalue (v1));
             gcc_jit_block_add_comment (ctxt->cur_block, NULL,
                                        "v1 = POP; TOP = Flist (1, {TOP, v1})");
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, top, call);
