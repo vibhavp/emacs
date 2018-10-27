@@ -1700,8 +1700,6 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
               jit_compile_call_to_subr (ctxt, Fnth, 2,
                                         gcc_jit_lvalue_as_rvalue (v1), v2_r);
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, v1, call);
-            call = jit_compile_assume (ctxt, jit_compile_LISTP (ctxt, v2_r));
-            gcc_jit_block_add_eval (ctxt->cur_block, NULL, v2_r);
             break;
           }
 
@@ -1804,14 +1802,11 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
             gcc_jit_lvalue *v1 = var_stack[stack_top--],
               *top = var_stack[stack_top];
             JIT_ADD_COMMENT ("v1 = POP; top = TOP; TOP = Fcons (top, v1)");
-            gcc_jit_rvalue *top_r = gcc_jit_lvalue_as_rvalue (top),
-              *call =
+            gcc_jit_rvalue *call =
               jit_compile_call_to_subr (ctxt, Fcons, 2,
                                         gcc_jit_lvalue_as_rvalue (top),
                                         gcc_jit_lvalue_as_rvalue (v1));
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, top, call);
-            call = jit_compile_assume (ctxt, jit_compile_CONSP (ctxt, top_r));
-            gcc_jit_block_add_eval (ctxt->cur_block, NULL, call);
             break;
           }
 
@@ -1823,8 +1818,6 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
             gcc_jit_block_add_comment (ctxt->cur_block, NULL,
                                        "TOP = list1 (1, top)");
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, top, call);
-            call = jit_compile_assume (ctxt, jit_compile_LISTP (ctxt, top_r));
-            gcc_jit_block_add_eval (ctxt->cur_block, NULL, call);
             break;
           }
 
@@ -1839,8 +1832,6 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
             gcc_jit_block_add_comment (ctxt->cur_block, NULL,
                                        "v1 = POP; TOP = Flist (1, {TOP, v1})");
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, top, call);
-            call = jit_compile_assume (ctxt, jit_compile_LISTP (ctxt, top_r));
-            gcc_jit_block_add_eval (ctxt->cur_block, NULL, call);
             break;
           }
 
@@ -1854,12 +1845,9 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
                                                                   Flist);
             stack_top -= 2;
             gcc_jit_lvalue *top = var_stack[stack_top];
-            gcc_jit_rvalue *top_r = gcc_jit_lvalue_as_rvalue (top);
             gcc_jit_block_add_comment (ctxt->cur_block, NULL,
                                        "TOP = Flist (3, args...)");
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, top, call);
-            call = jit_compile_assume (ctxt, jit_compile_LISTP (ctxt, top_r));
-            gcc_jit_block_add_eval (ctxt->cur_block, NULL, call);
             break;
           }
 
@@ -1873,12 +1861,9 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
                                                                   Flist);
             stack_top -= 3;
             gcc_jit_lvalue *top = var_stack[stack_top];
-            gcc_jit_rvalue *top_r = gcc_jit_lvalue_as_rvalue (top);
             gcc_jit_block_add_comment (ctxt->cur_block, NULL,
                                        "TOP = Flist (4, args...)");
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, top, call);
-            call = jit_compile_assume (ctxt, jit_compile_LISTP (ctxt, top_r));
-            gcc_jit_block_add_eval (ctxt->cur_block, NULL, call);
             break;
           }
 
@@ -1894,12 +1879,9 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
                                                                   Flist);
             stack_top -= op - 1;
             gcc_jit_lvalue *top = var_stack[stack_top];
-            gcc_jit_rvalue *top_r = gcc_jit_lvalue_as_rvalue (top);
             sprintf (buf, "top = Flist (%d, args...)", op);
             gcc_jit_block_add_comment (ctxt->cur_block, NULL, buf);
             gcc_jit_block_add_assignment (ctxt->cur_block, NULL, top, call);
-            call = jit_compile_assume (ctxt, jit_compile_LISTP (ctxt, top_r));
-            gcc_jit_block_add_eval (ctxt->cur_block, NULL, call);
             break;
           }
 
@@ -3037,12 +3019,7 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
           }
 
         case Bblock:
-          {
-            struct jit_block *block =
-                jit_block_stack_push_regular_block (ctxt, block_stack);
-            /* ctxt->cur_block = block->continuation_block; */
-            break;
-          }
+          jit_block_stack_push_regular_block (ctxt, block_stack);
 
         case Bconstant2:
           op = FETCH2;
