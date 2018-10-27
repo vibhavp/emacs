@@ -2779,7 +2779,6 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 	       (push arg vars))))
       (setq list (cdr list)))))
 
-
 (defun byte-compile-arglist-vars (arglist)
   "Return a list of the variables in the lambda argument list ARGLIST."
   (remq '&rest (remq '&optional arglist)))
@@ -4147,8 +4146,8 @@ that suppresses all warnings during execution of BODY."
 	  (byte-compile-out-tag elsetag)
 	  (byte-compile-maybe-guarded (list 'not clause)
 	    (byte-compile-body (cdr (cdr (cdr form))) byte-compile--for-effect))
-	  (byte-compile-out-tag donetag)))))
-  (setq byte-compile--for-effect nil))
+	  (byte-compile-out-tag donetag))))
+    (setq byte-compile--for-effect nil)))
 
 (defun byte-compile-cond-vars (obj1 obj2)
   ;; We make sure that of OBJ1 and OBJ2, one of them is a symbol,
