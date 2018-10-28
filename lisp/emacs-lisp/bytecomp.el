@@ -4147,6 +4147,9 @@ that suppresses all warnings during execution of BODY."
 	  (byte-compile-maybe-guarded (list 'not clause)
 	    (byte-compile-body (cdr (cdr (cdr form))) byte-compile--for-effect))
 	  (byte-compile-out-tag donetag))))
+    ;; The JIT-IR version of if leaves a value on the stack, which is why we
+    ;; dont set byte-compile--for-effect to nil whenever IR compilation is
+    ;; enabled.
     (setq byte-compile--for-effect nil)))
 
 (defun byte-compile-cond-vars (obj1 obj2)
@@ -4405,22 +4408,19 @@ Return a list of the form ((TEST . VAR)  ((VALUE BODY) ...))"
   (byte-compile-out 'byte-br-if depth))
 
 (defun byte-compile-ir-while (form)
-  (let ((byte-compile-depth byte-compile-depth))
-    (byte-compile-form `(null ,(car (cdr form))))
-    (byte-compile-ir-block
-     'byte-block
-     'byte-end
-     (byte-compile-ir-br-if 0)
-     (byte-compile-ir-block
-      'byte-loop
-      'byte-end
-      (let ((old-depth byte-compile-depth))
-        (byte-compile-body (cdr (cdr form)) t)
-        (byte-compile-form (car (cdr form)))
-        (byte-compile-ir-br-if 0)
-        (cl-assert (>= byte-compile-depth old-depth))
-        (when (> byte-compile-depth 0)
-          (byte-compile-discard (- byte-compile-depth old-depth) nil)))))))
+  (byte-compile-form `(null ,(car (cdr form))))
+  (byte-compile-ir-block
+   'byte-block
+   'byte-end
+   (byte-compile-ir-br-if 0)
+   (byte-compile-ir-block
+    'byte-loop
+    'byte-end
+    (let ((old-depth byte-compile-depth))
+      (byte-compile-body (cdr (cdr form)) t)
+      (cl-assert (= byte-compile-depth old-depth))
+      (byte-compile-form (car (cdr form)))
+      (byte-compile-ir-br-if 0)))))
 
 (defun byte-compile-while (form)
   (if byte-compile-emit-ir
