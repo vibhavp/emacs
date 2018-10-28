@@ -3020,6 +3020,7 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
 
         case Bblock:
           jit_block_stack_push_regular_block (ctxt, block_stack);
+          break;
 
         case Bconstant2:
           op = FETCH2;
