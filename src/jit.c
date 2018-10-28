@@ -3069,9 +3069,10 @@ jit_compile (struct jit_context *ctxt, Lisp_Object func, char *func_name,
       }
     }
 
+  size_t final_scratch_size = sizeof (Lisp_Object) * scratch_max_args;
   gcc_jit_block_add_assignment (scratch_alloc_block, NULL, scratch_local,
                                jit_compile_record_xmalloc (ctxt, lo_ptr_type,
-                                                           scratch_max_args));
+                                                           final_scratch_size));
   gcc_jit_block_end_with_jump (scratch_alloc_block, NULL, first_block);
 
   if (!NILP (file_dump_name))
